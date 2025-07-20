@@ -21,4 +21,4 @@ ASSETS_SCROLL_SPEED = 3
 
 VERSION = "V1.0.0"
 
-FONT_PATH = r"C:\Python\Level-Editor\Fonts\Lato-Black.ttf"
+FONT_PATH = r"Fonts\Lato-Bold.ttf"

@@ -21,7 +21,7 @@ class Text :
         self.text += key.unicode
         self.text_surface = self.font.render(self.text,True,self.text_color)
     elif type == 'int' :
-      if key.unicode in ['1','2','3','4','5','6','7','8','9','0'] :
+      if key.unicode in ['1','2','3','4','5','6','7','8','9','0','.'] :
         self.text += key.unicode
         self.text_surface = self.font.render(self.text,True,self.text_color)
 

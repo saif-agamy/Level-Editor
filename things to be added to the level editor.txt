@@ -1,5 +1,0 @@
-- clean the code and make it more readable [Done]
-- Search bar in Assets window
-- make  off-grid system that can be changed from tile info [Done] 
-- add layers [Done]
-- add window to choose maps 

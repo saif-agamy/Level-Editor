@@ -12,6 +12,8 @@ from utils import load_assets
 class Editor:
     def __init__(self):
         pygame.init()
+        pygame.display.set_caption("SA level editor")
+        pygame.display.set_icon(pygame.image.load('Logo_icon.ico'))
         
         # Initialize display and surfaces
         self.init_main_screen()
@@ -30,11 +32,14 @@ class Editor:
         
         # Assets
         self.game_assets = load_assets()
-        self.default_asset_key = [list(self.game_assets.keys())[0], False]
-        
+        if len(self.game_assets) > 0 :
+            self.default_asset_key = [list(self.game_assets.keys())[0], False]
+        else :
+            self.default_asset_key = [None, False]
         # Camera and input
         self.camera_scroll = [0, 0]
         self.shifting = False
+        self.left_clicking = False
         
         # Show loading screen
         self.show_loading_screen()
@@ -63,7 +68,7 @@ class Editor:
         self.tilemap_window_height = self.editor_height * 0.6
         self.tilemap_window_resolution = (self.tilemap_window_width, self.tilemap_window_height)
         self.tilemap_window_surf = pygame.Surface(self.tilemap_window_resolution)
-        self.tile_window_font = pygame.font.SysFont(FONT_PATH, 24)
+        self.tile_window_font = pygame.font.Font(FONT_PATH, 16)
         self.tilemap_window_rect = pygame.Rect(
             self.editor_width + 20, 10, 
             self.tilemap_window_width, self.tilemap_window_height
@@ -77,7 +82,7 @@ class Editor:
         self.tile_info_height = self.editor_height * 0.385
         self.tile_info_resolution = (self.tile_info_width, self.tile_info_height)
         self.tile_info_window = pygame.Surface(self.tile_info_resolution)
-        self.tile_info_font = pygame.font.SysFont(FONT_PATH, 24)
+        self.tile_info_font = pygame.font.Font(FONT_PATH, 16)
         self.tile_info_rect = pygame.Rect(
             self.editor_width + 20, 
             self.tilemap_window_height + (self.editor_height * 0.02) + 10,
@@ -111,7 +116,7 @@ class Editor:
         self.assets_height = self.screen_height * 0.4
         self.assets_resolution = (self.editor_width, self.assets_height)
         self.assets_window = pygame.Surface(self.assets_resolution)
-        self.assets_font = pygame.font.SysFont(FONT_PATH, 18)
+        self.assets_font = pygame.font.Font(FONT_PATH, 16)
         self.assets_info = {}
         self.assets_window_rect = pygame.Rect(
             10, self.editor_height + 20, 
@@ -125,7 +130,7 @@ class Editor:
         self.settings_height = self.assets_height
         self.settings_resolution = (self.settings_width, self.settings_height)
         self.settings_window = pygame.Surface(self.settings_resolution)
-        self.settings_font = pygame.font.SysFont(FONT_PATH, 24)
+        self.settings_font = pygame.font.Font(FONT_PATH, 16)
         self.settings_buttons = {}
         
         self.buttons_names = ["Show Grid", "map name txt", "save", "load", "On grid"]
@@ -158,8 +163,8 @@ class Editor:
         """Display the initial loading screen."""
         self.main_screen.fill(SCREEN_COLOR)
         
-        loading_screen_font_1 = pygame.font.SysFont(FONT_PATH, 120)
-        loading_screen_font_2 = pygame.font.SysFont(FONT_PATH, 30)
+        loading_screen_font_1 = pygame.font.Font(FONT_PATH, 120)
+        loading_screen_font_2 = pygame.font.Font(FONT_PATH, 30)
         
         logo_text = loading_screen_font_1.render("Saif Agamy", True, (255, 255, 255))
         editor_text = loading_screen_font_2.render("Level Editor made with python and pygame", True, (255, 255, 0))
@@ -185,6 +190,7 @@ class Editor:
         """Main game loop."""
         while True:
             self.handle_events()
+            self.change_offgrid_location()
             self.render()
             pygame.display.flip()
             self.update_buttons()
@@ -232,6 +238,10 @@ class Editor:
             
             if event.button in mouse_button_map:
                 mouse_button_map[event.button]()
+
+        if event.type == pygame.MOUSEBUTTONUP:
+            if event.button == 1 :
+                self.left_clicking = False
     
     def handle_left_click(self):
         """Handle left mouse button clicks."""
@@ -247,6 +257,8 @@ class Editor:
             self.handle_tile_info_click(mouse_x, mouse_y)
         elif self.settings_window_rect.collidepoint(mouse_x, mouse_y):
             self.handle_settings_click(mouse_x, mouse_y)
+
+        self.left_clicking = True
     
     def handle_editor_click(self, mouse_x, mouse_y):
         """Handle clicks in the editor area."""
@@ -338,13 +350,24 @@ class Editor:
             if tile_key in self.tile_map:
                 del self.tile_map[tile_key]
 
-            for rect_key in self.offgrid_rects :
-                rect = self.offgrid_rects[rect_key]
-                if rect.collidepoint(scaled_x,scaled_y) :
-                    del self.offgrid[rect_key]
+            # Create a list of keys to delete to avoid modifying dict during iteration
+            keys_to_delete = []
+            for rect_key, rect in self.offgrid_rects.items():
+                if rect.collidepoint(scaled_x, scaled_y):
+                    keys_to_delete.append(rect_key)
+            
+            # Delete the found keys
+            for key in keys_to_delete:
+                if key in self.offgrid:
+                    del self.offgrid[key]
+                if key in self.offgrid_rects:
+                    del self.offgrid_rects[key]
 
-        if self.assets_window_rect.collidepoint(mouse_x,mouse_y) :
+        if self.assets_window_rect.collidepoint(mouse_x, mouse_y):
             self.default_asset_key[0] = None
+
+        if self.editor_rect.collidepoint(mouse_x, mouse_y):
+            self.deselect_all()
     
     def handle_scroll_up(self):
         """Handle mouse scroll up events."""
@@ -359,7 +382,9 @@ class Editor:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         
         if self.tilemap_window_rect.collidepoint(mouse_x, mouse_y):
-            content_height = 40 * len(self.tile_map) + 10
+            tilemap_height = 40 * len(self.tile_map) + 10
+            offgrid_height = 40 * len(self.offgrid) + 10
+            content_height = tilemap_height + offgrid_height
             visible_height = self.tilemap_window_resolution[1]
             min_scroll = 0
             max_scroll = min(0, visible_height - content_height)
@@ -441,13 +466,33 @@ class Editor:
                     for option in self.tiles_options_rects :
                         if option.endswith("txt") and option[:-4] == "size" :
                             text_bar = self.tiles_options_rects[option]
-                            self.change_size(int(text_bar.text))
+                            self.change_size(float(text_bar.text))
     
     def rotate_selected_tiles(self):
         """Rotate all selected tiles."""
         for tile in self.tile_map.values():
             if tile['selected']:
                 tile['rotate'] += 1
+
+        for offgrid in self.offgrid.values():
+            if offgrid['selected']:
+                offgrid['rotate'] += 1
+
+    def change_offgrid_location(self):
+        if self.left_clicking :
+            for key in self.offgrid :
+                offgrid = self.offgrid[key]
+                rect = self.offgrid_rects[key]
+                
+                mouse_x = pygame.mouse.get_pos()[0]
+                mouse_y = pygame.mouse.get_pos()[1]
+                
+                scaled_x = (self.scaled_width / self.editor_width) * mouse_x
+                scaled_y = (self.scaled_height / self.editor_height) * mouse_y
+                if offgrid['selected']:
+                    img_size = (self.game_assets[offgrid['type']].get_width(),self.game_assets[offgrid['type']].get_height())
+                    offgrid['pos'] = (scaled_x - img_size[0] + 2,scaled_y - img_size[1] + 1)
+                    rect.topleft = (scaled_x - img_size[0] + 2,scaled_y - img_size[1] + 1)
     
     def get_scaled_coords(self, mouse_x, mouse_y):
         """Convert screen coordinates to scaled editor coordinates."""
@@ -561,6 +606,15 @@ class Editor:
             if offgrid['selected'] :
                 offgrid['size'] = new_size
 
+                if offgrid_key in self.offgrid_rects:
+                    asset_img = self.game_assets[offgrid['type']]
+                    self.offgrid_rects[offgrid_key] = pygame.Rect(
+                        offgrid['pos'][0],
+                        offgrid['pos'][1],
+                        asset_img.get_width() * new_size,
+                        asset_img.get_height() * new_size
+                    )
+
     def render(self):
         """Render all editor components."""
         self.render_tiles()
@@ -638,7 +692,7 @@ class Editor:
             rect = pygame.Rect(
                 rect_pos_x + self.camera_scroll[0],
                 rect_pos_y + self.camera_scroll[1],
-                self.tile_size, self.tile_size
+                self.game_assets[offgrid_data['type']].get_width() * offgrid_data['size'], self.game_assets[offgrid_data['type']].get_height() * offgrid_data['size']
             )
             pygame.draw.rect(self.scaled_surface, SELECT_COLOR, rect, width=1)
     
@@ -883,7 +937,7 @@ class Editor:
         """Render the assets selection window."""
         self.assets_window.fill(WINDOWS_COLOR)
         
-        start_x = 20
+        start_x = 25
         start_y = 20 + self.assets_window_scroll * ASSETS_SCROLL_SPEED
         padding_x = 20
         padding_y = 40
@@ -968,20 +1022,43 @@ class Editor:
         """Save the current tilemap to a file."""
         for button_name, button in self.settings_buttons.items():
             if button_name == "map name txt":
-                file_path = os.path.join("Maps", f"{button.text}.json")
-                with open(file_path, 'w') as file:
-                    json.dump(self.tile_map, file)
-                break
+                try :
+                    file_path = os.path.join("Maps", f"{button.text}.json")
+                    with open(file_path, 'w') as file:
+                        json.dump({ 
+                            'tile_map' : self.tile_map,
+                            'offgrid' : self.offgrid,
+                            'tile_size' : self.tile_size,
+                            },
+                            file
+                            )
+                    break
+                except :
+                    pass
     
     def load_map(self):
         """Load a tilemap from a file."""
         for button_name, button in self.settings_buttons.items():
             if button_name == "map name txt":
-                file_path = os.path.join("Maps", f"{button.text}.json")
-                if os.path.exists(file_path):
-                    with open(file_path, 'r') as file:
-                        self.tile_map = json.load(file)
-                break
+                try :
+                    file_path = os.path.join("Maps", f"{button.text}.json")
+                    if os.path.exists(file_path):
+                        with open(file_path, 'r') as file:
+                            data = json.load(file)
+                            self.offgrid = data['offgrid']
+                            self.offgrid_rects = {}
+                            for offgrid_key in self.offgrid :
+                                offgrid = self.offgrid[offgrid_key]
+                                self.offgrid_rects[offgrid_key] = pygame.Rect(
+                                    offgrid['pos'][0], offgrid['pos'][1],
+                                    self.game_assets[offgrid['type']].get_width(),
+                                    self.game_assets[offgrid['type']].get_height()
+                                )
+                            self.tile_map = data['tile_map']
+                            self.tile_size = data['tile_size']
+                    break
+                except :
+                    pass
 
 
 if __name__ == "__main__":
