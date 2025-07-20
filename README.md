@@ -1,6 +1,10 @@
 # Level Editor 🛠️
-A powerful and intuitive level editor built in python & pygame for designing game levels , real-time preview, and export support. Perfect for game developers and designers.
+A powerful and intuitive level editor built in python & pygame for designing game levels , real-time preview, and export support. Perfect for game developers and designers
 
+# using the editor
+there is an .exe file named "an exe" with an exported version of the editor to use it directly in production with out running any code! 
+
+# screen-shots
 <h3>editor</h3> 
 <img src="screenShots/editor.png" width="400" height="400">
 <h3>editor settings</h3> 
